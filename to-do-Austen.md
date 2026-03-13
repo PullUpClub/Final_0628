@@ -1,4 +1,4 @@
-# Pull-Up Club: Lovable Rebuild — Austin's Guide
+# Pull-Up Club: Lovable Rebuild — Austen's Guide
 
 ---
 
