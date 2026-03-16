@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Provider, AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase, isDevelopment, getRedirectUrl } from "../lib/supabase";
 import { createCheckoutSession, getActiveSubscription } from "../lib/stripe";
 import { Badge } from "../types";
@@ -162,17 +163,7 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-
-  // Safety net: Force clear loading after 2 seconds for snappy UX
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn("[AuthContext] Forcing loading to false after timeout");
-        setIsLoading(false);
-      }
-    }, 2000);
-    return () => clearTimeout(timeout);
-  }, [isLoading]);
+  const queryClient = useQueryClient();
 
   // This will be defined after evaluateSubscription is declared
 
@@ -251,8 +242,8 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Simple session validation
   useEffect(() => {
     const validateSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) {
         setUser(null);
         setProfile(null);
       }
@@ -669,10 +660,10 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const initAuth = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser();
 
-      if (session?.user) {
-        const currentUser = { id: session.user.id, email: session.user.email! };
+      if (authUser && !userError) {
+        const currentUser = { id: authUser.id, email: authUser.email! };
         setUser(currentUser);
         
         // Validate session and fetch profile
@@ -713,12 +704,6 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           `[AuthContext] onAuthStateChange event: ${event}, User: ${session?.user?.email}`,
         );
 
-        // Prevent processing if we're already handling this event
-        if (isLoading) {
-          console.log('[AuthContext] Skipping auth state change while loading');
-          return;
-        }
-
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('[AuthContext] Processing SIGNED_IN event');
           setIsLoading(true);
@@ -753,6 +738,9 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             // Finally process any pending subscription
             await processPendingSubscriptionMemo(currentUser);
             
+            // Invalidate React Query cache so stale data gets refetched
+            queryClient.invalidateQueries();
+
             console.log('[AuthContext] SIGNED_IN processing complete');
           } catch (error) {
             console.error('[AuthContext] Error processing sign in:', error);
@@ -770,13 +758,8 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsAdmin(false);
           setSubscriptionState('loading');
           
-          // Clear any stored session data
-          try {
-            localStorage.removeItem('pullupclub-auth');
-            document.cookie = 'pullupclub-auth=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; secure; samesite=strict';
-          } catch (e) {
-            console.warn('[AuthContext] Error clearing stored session:', e);
-          }
+          // Invalidate React Query cache to clear stale user data
+          queryClient.invalidateQueries();
         }
         // Ignore other events (INITIAL_SESSION, TOKEN_REFRESHED, etc.)
       }

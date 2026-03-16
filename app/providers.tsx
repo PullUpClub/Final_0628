@@ -24,9 +24,9 @@ const queryClient = new QueryClient({
       staleTime: 2 * 60 * 1000, // 2 minutes
       gcTime: 5 * 60 * 1000, // 5 minutes
       retry: false, // No retries for faster feedback
-      refetchOnWindowFocus: false,
-      refetchOnMount: false, // Don't refetch on mount for better performance
-      refetchOnReconnect: false,
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+      refetchOnReconnect: true,
     },
     mutations: {
       retry: false, // No retries for faster feedback

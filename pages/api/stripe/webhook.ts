@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import Stripe from 'stripe';
-import { supabase } from '../../../lib/supabase';
+import { createApiClient } from '../../../lib/supabase-server';
 
 // Disable body parsing for webhooks
 export const config = {
@@ -28,6 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const supabase = createApiClient(req, res);
     const buf = await getRawBody(req);
     const sig = req.headers['stripe-signature']!;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;

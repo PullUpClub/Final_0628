@@ -1,5 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { supabase } from '../../../lib/supabase';
+import { createApiClient } from '../../../lib/supabase-server';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Only allow POST requests
@@ -8,15 +8,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const supabase = createApiClient(req, res);
+
     // Get the authorization header from the client request
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader) {
       return res.status(401).json({ error: 'Authorization header required' });
     }
 
     console.log('[API] Proxying checkout request to Supabase edge function');
-    
+
     // Proxy the request to your existing Supabase edge function
     const { data, error } = await supabase.functions.invoke('create-checkout', {
       body: req.body,

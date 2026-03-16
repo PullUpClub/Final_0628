@@ -553,7 +553,7 @@ const AdminDashboardPage: React.FC = () => {
       console.log(`Submission ${newStatus.toLowerCase()} successfully`);
     } catch (error) {
       console.error('Error updating submission:', error);
-      setError(error instanceof Error ? error.message : 'Failed to update submission');
+      setError((error as any)?.message || 'Failed to update submission');
     } finally {
       setIsLoading(false);
     }
